@@ -1,0 +1,9 @@
+d	62.5
+scaleMin	0.1
+scaleMax	1.0
+dzMax	3.0
+iterMax	1000
+maxSinks	0
+iterMaxFill	150
+gradLake	0.0005
+lakeCutoff	1500
