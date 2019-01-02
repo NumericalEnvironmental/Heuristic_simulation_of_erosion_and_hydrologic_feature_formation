@@ -1,6 +1,8 @@
 # Heuristic_simulation_of_erosion_and_hydrologic_feature_formation
 
-This julia language script reads an initial N x N grid of elevations across an x-y plane and simulates the formation of erosional and hydrologic features in response to user-supplied input parameters. This is accomplished by delineating total drainage areas associated with every cell (based on matrix algebra), filling in grid depressions, and specifying local erosion rates that are functions of drainage area as well as land surface gradient. Additional information, and results for an example problem, are provided in my blog (link pending).
+![Preview](https://numericalenvironmental.files.wordpress.com/2019/01/hydro_system.jpg?w=1632)
+
+This julia language script reads an initial N x N grid of elevations across an x-y plane and simulates the formation of erosional and hydrologic features in response to user-supplied input parameters. This is accomplished by delineating total drainage areas associated with every cell (based on matrix algebra), filling in grid depressions, and specifying local erosion rates that are functions of drainage area as well as land surface gradient. Additional information, and results for an example problem, are provided in my blog (https://numericalenvironmental.wordpress.com/2019/01/02/simulating-erosion-and-watershed-formation-on-a-synthetically-generated-surface/).
 
 The script requires julia 1.0 or above, including the DelimitedFiles and SparseArrays packages. Two text input files are also required: (1) a comma delimited initial x-y-z surface file, labeled “surface_input.csv”, and (2) a parameters file (“params.text”) to adjust performance characteristics - see internal documentation for specific details.
 
