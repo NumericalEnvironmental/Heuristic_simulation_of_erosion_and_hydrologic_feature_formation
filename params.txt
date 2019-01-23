@@ -6,4 +6,5 @@ iterMax	1000
 maxSinks	0
 iterMaxFill	150
 gradLake	0.0005
+elevLake	0.0
 lakeCutoff	1500

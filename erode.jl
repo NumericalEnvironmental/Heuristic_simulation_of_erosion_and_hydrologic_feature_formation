@@ -1,6 +1,6 @@
 ########################################################################################
 #
-# erode.jl - a julia script for generating an eroded surface and hydrologic features
+# erode.jl
 #
 ########################################################################################
 
@@ -18,7 +18,7 @@ mutable struct Cell                     # a location on surface
     z::Float64                          # elevation (subject to change)
 	A::Float64 							# drainage area
 	grad::Float64 						# mean gradient magnitude
-	lake::Bool 							# is part of a lake (true/false)
+	lake::Bool 							# is part of a lake
     neighbors::Array{Int64, 1}          # list of connecting cells
 end
 
@@ -42,6 +42,7 @@ mutable struct Params
     maxSinks::Int64                     # maximum number of internal drainage cells allowed in domain
     iterMaxFill::Int64                  # maximum number of internal drainage fill attempts, per outer iteration
 	gradLake::Float64 					# maximum gradient magnitude threshold to include cell within a lake feature
+    elevLake::Float64                   # lake elevation elevation threshold (alternative means for defining lake)
 	lakeCutoff::Float64 				# threshold distance for including/excluding lake points in lake group
 end
 
@@ -58,7 +59,7 @@ function ReadSurface()
     nx = length(collect(Set(xArray)))
     ny = length(collect(Set(xArray)))    
     for i = 1:size(data[1], 1)
-        x = Float64(data[1][i, 1])                  # must be sorted by x (innner) and then y (outer)
+        x = Float64(data[1][i, 1])                  # must be sorted by x (inner) and then y (outer)
         y = Float64(data[1][i, 2])
         z = Float64(data[1][i, 3])
 		A = 0.0 									# drainage area placeholder
@@ -74,18 +75,19 @@ end
 function ReadParams()::Params
     # read numerical model parameters
     data = readdlm("params.txt", '\t', header=false)
-    d = Float64(data[1, 2])                         # grid cell size
-    scaleMin = Float64(data[2, 2])                  # scaling factors for gradient vs. drainage impact on erosion rate
+    d = Float64(data[1, 2])
+    scaleMin = Float64(data[2, 2])
     scaleMax = Float64(data[3, 2])	
-    dzMax = Float64(data[4, 2])	                    # maximum erosion rate per iteration
-	iterMax = Int64(data[5, 2])                     # number of iterations
-	maxSinks = Int64(data[6, 2])                    # number of internal sink cells allowed until exit from fill function
-	iterMaxFill = Int64(data[7, 2])                 # maximum number of iterations within fill function
-	gradLake = Float64(data[8, 2])                  # threshold land elevation gradient used to delineate lake cells
-	lakeCutoff = Float64(data[9, 2])                # maximum distance used to group cells within a given lake
-	scaleF = 0. 					                # placeholders; defined dynamically within code
+    dzMax = Float64(data[4, 2])	
+	iterMax = Int64(data[5, 2])
+	maxSinks = Int64(data[6, 2])
+	iterMaxFill = Int64(data[7, 2])
+	gradLake = Float64(data[8, 2])
+	elevLake = Float64(data[9, 2])    
+	lakeCutoff = Float64(data[10, 2])
+	scaleF = 0. 					# placeholders; defined dynamically within code
 	zMin = 0.
-    params = Params(d, zMin, scaleMin, scaleMax, scaleF, dzMax, iterMax, maxSinks, iterMaxFill, gradLake, lakeCutoff)
+    params = Params(d, zMin, scaleMin, scaleMax, scaleF, dzMax, iterMax, maxSinks, iterMaxFill, gradLake, elevLake, lakeCutoff)
     println("Read model parameters.")
     return params
 end
@@ -124,18 +126,12 @@ end
 ### cell connectivity and area + erosion modeling functions
 
 
-function EdgeMin(cell::Array{Cell, 1}, nx::Int64, ny::Int64)::Float64
-    # find minimum elevation along model boundaries; this will fix the lowest allowed elevation anywhere
+function ElevMin(cell::Array{Cell, 1})::Float64
+    # find minimum starting elevation; this will fix the lowest allowed elevation anywhere
     zMin = 1e+10
-    for i = 1:nx            #east-west edges
-        i2 = i + nx*(ny-1)
-        zMin = minimum([zMin, cell[i].z, cell[i2].z])
+    for ce in cell
+        zMin = minimum([zMin, ce.z])
     end
-    for j = 1:ny            # north-south edges
-        j1 = (j-1)*nx + 1
-        j2 = j*nx
-        zMin = minimum([zMin, cell[j1].z, cell[j2].z])        
-    end    
     return zMin
 end
 
@@ -283,7 +279,7 @@ function LakeCells(cell::Array{Cell, 1}, params::Params)
 	# delineate subset of cells within lake(s)
 	lakeCell = Cell[]
 	for ce in cell
-		if ce.grad <= params.gradLake
+        if (ce.grad <= params.gradLake) || (ce.z <= params.elevLake)
 			push!(lakeCell, ce)
 			ce.lake = true
 		end
@@ -384,7 +380,7 @@ function Erode()
     params = ReadParams()                                   # read model parameters
     
     # process initial surface definition
-    params.zMin = EdgeMin(cell, nx, ny)
+    params.zMin = ElevMin(cell)
     cell, connect = Connection(cell, nx, ny)                # tabulate cell connections
 	println("Processed cell network.")
 
@@ -432,7 +428,11 @@ function Erode()
 	end
 	WriteLakePerim(lakeContainer)
 	WriteCells(lakeCell, "Lakes.csv")	# write lake cell sets to separate file (for plotting, etc.)
-  
+
+
+
+    # delineate streams; need to figure out if cell that is being crossed has its lake flag checked
+    
     # write elevation and drainage area results
     WriteCells(cell, "FinalState.csv")           # write cell output file
     
